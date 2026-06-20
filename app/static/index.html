@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Statement → Excel</title>
+<style>
+  :root { --blue:#1a4ea3; --amber:#fff2cc; --line:#e2e6ee; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin:0;
+         background:#f4f6fb; color:#1c2330; }
+  header { background:var(--blue); color:#fff; padding:18px 28px; }
+  header h1 { margin:0; font-size:20px; font-weight:600; }
+  header p { margin:4px 0 0; opacity:.85; font-size:13px; }
+  main { max-width:1100px; margin:28px auto; padding:0 20px; }
+  #drop { border:2px dashed #b9c4d8; border-radius:12px; background:#fff;
+          padding:46px; text-align:center; cursor:pointer; transition:.15s; }
+  #drop.drag { border-color:var(--blue); background:#eef3fc; }
+  #drop strong { color:var(--blue); }
+  #drop small { display:block; color:#6b7689; margin-top:8px; }
+  #file { display:none; }
+  .bar { margin:18px 0; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  button { background:var(--blue); color:#fff; border:0; padding:10px 18px;
+           border-radius:8px; font-size:14px; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  button.secondary { background:#fff; color:var(--blue); border:1px solid var(--blue); }
+  #status { font-size:13px; color:#6b7689; }
+  .pill { background:var(--amber); padding:2px 8px; border-radius:20px; font-size:12px; }
+  table { width:100%; border-collapse:collapse; background:#fff; font-size:12.5px;
+          border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  th,td { padding:7px 9px; border-bottom:1px solid var(--line); text-align:left;
+          white-space:nowrap; }
+  th { background:#d9e1f2; position:sticky; top:0; }
+  td.desc { white-space:normal; max-width:380px; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  tr.review td { background:var(--amber); }
+  .meta { background:#fff; border-radius:10px; padding:16px 20px; margin-bottom:18px;
+          box-shadow:0 1px 3px rgba(0,0,0,.06); font-size:13px; }
+  .meta div { padding:3px 0; }
+  .meta b { display:inline-block; width:180px; color:#46506a; }
+  .wrap { max-height:60vh; overflow:auto; border-radius:10px; }
+  .hide { display:none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Bank Statement → Excel</h1>
+  <p>Upload a scanned PDF or image of an SBI statement. Get it back in the standard Excel layout.</p>
+</header>
+<main>
+  <div id="drop">
+    <strong>Drop a PDF or image here</strong>, or click to choose
+    <small>Supports .pdf, .png, .jpg, .tiff — one file at a time</small>
+    <input id="file" type="file" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.bmp,.webp" />
+  </div>
+
+  <div id="pwWrap" class="bar hide">
+    <label for="pw" style="font-size:13px;color:#46506a;">PDF password</label>
+    <input id="pw" type="password" placeholder="Enter password if the PDF is protected"
+           style="padding:9px 12px;border:1px solid #b9c4d8;border-radius:8px;font-size:14px;min-width:280px;" />
+  </div>
+
+  <div class="bar">
+    <button id="previewBtn" disabled>Preview parsed data</button>
+    <button id="convertBtn" class="secondary" disabled>Download Excel (.xlsx)</button>
+    <span id="status"></span>
+  </div>
+
+  <div id="meta" class="meta hide"></div>
+  <div id="tableWrap" class="wrap hide">
+    <table id="tbl"><thead></thead><tbody></tbody></table>
+  </div>
+</main>
+
+<script>
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('file');
+const previewBtn = document.getElementById('previewBtn');
+const convertBtn = document.getElementById('convertBtn');
+const statusEl = document.getElementById('status');
+const meta = document.getElementById('meta');
+const tableWrap = document.getElementById('tableWrap');
+const tbl = document.getElementById('tbl');
+const pwWrap = document.getElementById('pwWrap');
+const pw = document.getElementById('pw');
+let chosen = null;
+let parsed = null;   // cached /preview result for the current file
+
+function setFile(f){
+  chosen = f; parsed = null;
+  previewBtn.disabled = convertBtn.disabled = !f;
+  statusEl.textContent = f ? `Selected: ${f.name}` : '';
+  // Offer the password box up-front for PDFs; required ones will demand it.
+  pwWrap.classList.toggle('hide', !(f && /\.pdf$/i.test(f.name)));
+}
+
+drop.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => setFile(e.target.files[0]));
+['dragover','dragenter'].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.remove('drag'); }));
+drop.addEventListener('drop', e => setFile(e.dataTransfer.files[0]));
+
+function handlePwRequired(body){
+  pwWrap.classList.remove('hide');
+  pw.focus();
+  statusEl.textContent = (body.detail || 'This PDF needs a password.') +
+    ' Enter it above and try again.';
+}
+
+// Extract once (the slow Claude step). Returns parsed data, or null if it
+// couldn't proceed (password required / error). Result is cached in `parsed`.
+async function runExtraction(){
+  const fd = new FormData();
+  fd.append('file', chosen);
+  if(pw.value) fd.append('password', pw.value);
+  statusEl.textContent =
+    'Reading the statement with Claude vision… (long/large PDFs can take a few minutes)';
+  const res = await fetch('/preview', { method:'POST', body: fd });
+  if(res.status === 422){ handlePwRequired(await res.json()); return null; }
+  if(!res.ok){ throw new Error((await res.json()).detail || res.statusText); }
+  parsed = await res.json();
+  render(parsed);
+  return parsed;
+}
+
+previewBtn.addEventListener('click', async () => {
+  if(!chosen) return;
+  previewBtn.disabled = convertBtn.disabled = true;
+  try { await runExtraction(); }
+  catch(err){ statusEl.textContent = 'Error: ' + err.message; }
+  finally { previewBtn.disabled = convertBtn.disabled = false; }
+});
+
+convertBtn.addEventListener('click', async () => {
+  if(!chosen) return;
+  previewBtn.disabled = convertBtn.disabled = true;
+  try {
+    // Reuse the already-parsed data; only extract if we don't have it yet.
+    if(!parsed){ if(!await runExtraction()) return; }
+    statusEl.textContent = 'Building Excel…';
+    const res = await fetch('/convert', {
+      method:'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        header: parsed.header,
+        columns: parsed.columns,
+        rows: parsed.rows.map(r => r.cells),
+        footer: parsed.footer,
+        filename: parsed.filename || (chosen ? chosen.name : 'statement'),
+      }),
+    });
+    if(!res.ok){ throw new Error((await res.json()).detail || res.statusText); }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = (chosen.name.replace(/\.[^.]+$/, '') || 'statement') + '.xlsx';
+    a.click(); URL.revokeObjectURL(url);
+    statusEl.textContent = 'Downloaded ✓';
+  } catch(err){ statusEl.textContent = 'Error: ' + err.message; }
+  finally { previewBtn.disabled = convertBtn.disabled = false; }
+});
+
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>]/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+function render(data){
+  meta.classList.remove('hide');
+  let h = '';
+  for(const [k,v] of data.header) h += `<div><b>${esc(k)}</b>${esc(v)}</div>`;
+  h += `<div style="margin-top:8px"><b>Rows parsed</b>${data.row_count}` +
+       (data.needs_review ? ` &nbsp;<span class="pill">${data.needs_review} need review</span>` : '') +
+       `</div>`;
+  meta.innerHTML = h;
+
+  const cols = data.columns;
+  tbl.querySelector('thead').innerHTML =
+    '<tr>' + cols.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>';
+  tbl.querySelector('tbody').innerHTML = data.rows.map(r =>
+    `<tr class="${r.ok ? '' : 'review'}">` +
+    cols.map(c => {
+      const v = r.cells[c];
+      const isNum = /\d/.test(v||'') && /debit|credit|balance|amount/i.test(c);
+      return `<td class="${isNum ? 'num' : (c.length>15?'desc':'')}">${esc(v)}</td>`;
+    }).join('') + '</tr>').join('');
+  tableWrap.classList.remove('hide');
+  let msg = `Parsed ${data.row_count} rows` +
+    (data.needs_review ? ` — ${data.needs_review} highlighted for review.` : '.');
+  if(data.page_errors && data.page_errors.length)
+    msg += ` ⚠️ ${data.page_errors.length} page(s) failed: ${data.page_errors.join('; ')}`;
+  statusEl.textContent = msg;
+}
+</script>
+</body>
+</html>

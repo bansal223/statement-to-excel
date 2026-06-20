@@ -1,0 +1,7 @@
+# Dependencies for embedding statement extraction in a service (no web UI).
+# System dep (not pip): poppler-utils  ->  apt-get install -y poppler-utils
+openai==2.43.0
+pydantic-settings==2.14.2
+openpyxl==3.1.5
+pdf2image==1.17.0
+pillow==11.0.0
