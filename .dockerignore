@@ -1,0 +1,14 @@
+.env
+.env.*
+.git
+.gitignore
+.venv
+venv
+__pycache__
+**/__pycache__
+*.pyc
+*.xlsx
+samples
+tools
+README.md
+INTEGRATION.md
