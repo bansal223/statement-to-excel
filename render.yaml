@@ -1,0 +1,27 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# In Render: New → Blueprint → connect this repo. It reads this file.
+# Set OPENAI_API_KEY in the dashboard (sync:false keeps the secret out of git).
+services:
+  - type: web
+    name: statement-to-excel
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter            # 'free' spins down when idle; 'starter' stays warm
+    region: oregon           # pick the region nearest you
+    healthCheckPath: /engine
+    autoDeploy: true
+    envVars:
+      - key: OPENAI_API_BASE_ENDPOINT
+        value: https://truefoundry.innovaccer.com/api/llm/api/inference/openai/
+      - key: OPENAI_USE_GATEWAY
+        value: "True"
+      - key: OPENAI_CHAT_MODEL
+        value: openai/gpt-5.1
+      - key: OPENAI_API_VERSION
+        value: "2025-08-01"
+      - key: OPENAI_API_TYPE
+        value: openai
+      - key: STATEMENT_DATE_FMT
+        value: "%d/%m/%y"
+      - key: OPENAI_API_KEY      # set this in the Render dashboard (secret)
+        sync: false
