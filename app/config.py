@@ -28,7 +28,9 @@ class StatementLLMSettings(BaseSettings):
     # errors; openai/gpt-4o missed a row. openai/gpt-5 is NOT authorized for the
     # transcription-helper-va account (403) — use gpt-5.1.
     CHAT_MODEL: str = "openai/gpt-5.1"
-    MAX_TOKENS: int = 16000
+    # 32k gives "thinking" models (e.g. gemini-2.5-flash) room to emit a full
+    # large table — 16k truncated page 2 to empty. Override via OPENAI_MAX_TOKENS.
+    MAX_TOKENS: int = 32000
 
     model_config = SettingsConfigDict(
         env_prefix="OPENAI_", env_file=".env", env_file_encoding="utf-8", extra="ignore",

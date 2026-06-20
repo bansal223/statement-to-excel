@@ -23,7 +23,7 @@ from .vision import (
     run_concurrent,
 )
 
-DEFAULT_MAX_TOKENS = 16000
+DEFAULT_MAX_TOKENS = 32000  # headroom for "thinking" models (gemini-2.5-flash)
 
 _IMAGE_PROMPT = """\
 This is a scanned image of ONE page of a bank statement. Extract its data faithfully and
@@ -37,18 +37,35 @@ do not invent or summarise; output JSON only.
 
 
 def _complete(client, model: str, content, max_tokens: int) -> str:
-    """One chat-completion call, tolerant of model/param variation across the gateway."""
+    """One chat-completion call, tolerant of model/param variation across providers.
+
+    Some providers (e.g. Gemini 'thinking' models) intermittently return empty content
+    when response_format=json_object is set, so we retry without it — _extract_json
+    still recovers JSON from a plain-text reply.
+    """
     base = dict(model=model, messages=[{"role": "user", "content": content}])
+
+    def _call(**extra) -> str:
+        resp = client.chat.completions.create(**base, **extra)
+        return resp.choices[0].message.content or ""
+
+    # 1) preferred: JSON mode + max_completion_tokens (gpt-5 / o-series)
     try:
-        # Preferred shape for current OpenAI models (gpt-5 / o-series) + JSON mode.
-        resp = client.chat.completions.create(
-            **base, max_completion_tokens=max_tokens,
-            response_format={"type": "json_object"},
-        )
+        out = _call(max_completion_tokens=max_tokens,
+                    response_format={"type": "json_object"})
+        if out.strip():
+            return out
     except Exception:
-        # Fallback for models/gateways that reject those params.
-        resp = client.chat.completions.create(**base, max_tokens=max_tokens)
-    return resp.choices[0].message.content or ""
+        pass
+    # 2) retry: plain max_tokens, no response_format (broadest compatibility)
+    try:
+        out = _call(max_tokens=max_tokens)
+        if out.strip():
+            return out
+    except Exception:
+        pass
+    # 3) last resort: max_completion_tokens, no response_format
+    return _call(max_completion_tokens=max_tokens)
 
 
 def _text_page(client, model, max_tokens, text: str) -> dict:
