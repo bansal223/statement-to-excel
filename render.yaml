@@ -12,7 +12,7 @@ services:
     autoDeploy: true
     envVars:
       - key: OPENAI_API_BASE_ENDPOINT
-        value: https://truefoundry.innovaccer.com/api/llm/api/inference/openai/
+        value: https://llm-gateway.example.com/v1/
       - key: OPENAI_USE_GATEWAY
         value: "True"
       - key: OPENAI_CHAT_MODEL

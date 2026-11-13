@@ -1,7 +1,7 @@
 # Integrating statement → Excel into your service
 
 Converts a bank-statement **PDF/image** into a **BUSY-ready `.xlsx`** using your
-existing **TrueFoundry OpenAI-compatible gateway**. Framework-agnostic: one function,
+existing **OpenAI-compatible gateway**. Framework-agnostic: one function,
 bytes in → bytes out.
 
 ## 1. Files to copy into your service
@@ -32,15 +32,15 @@ Your current `.env` works as-is. Just point the model at one this account can us
 
 ```dotenv
 OPENAI_API_KEY=<token>          # keep in .env / secrets, never commit
-OPENAI_API_BASE_ENDPOINT=https://truefoundry.innovaccer.com/api/llm/api/inference/openai/
+OPENAI_API_BASE_ENDPOINT=https://llm-gateway.example.com/v1/
 OPENAI_USE_GATEWAY=True
 OPENAI_CHAT_MODEL=openai/gpt-5.1   # benchmarked best; gpt-5 is NOT authorized for this account
 ```
 
 > **Model choice (benchmarked on a real scanned statement, balance-reconciled):**
-> `openai/gpt-5.1` and `internal-bedrock/sonnet-46` extracted every row with 0 digit
+> `openai/gpt-5.1` and `anthropic/claude-sonnet` extracted every row with 0 digit
 > errors; `openai/gpt-4o` missed a row. Use **`openai/gpt-5.1`** (fastest + complete);
-> `internal-bedrock/sonnet-46` (Claude) is an equally accurate fallback.
+> `anthropic/claude-sonnet` (Claude) is an equally accurate fallback.
 
 Optional (BUSY date format — defaults to `DD/MM/YY`):
 ```dotenv

@@ -6,7 +6,7 @@ service you deploy the container somewhere. Three paths, easiest first.
 Required runtime config (env vars / platform secrets — never commit):
 ```
 OPENAI_API_KEY=<gateway token>
-OPENAI_API_BASE_ENDPOINT=https://truefoundry.innovaccer.com/api/llm/api/inference/openai/
+OPENAI_API_BASE_ENDPOINT=https://llm-gateway.example.com/v1/
 OPENAI_USE_GATEWAY=True
 OPENAI_CHAT_MODEL=openai/gpt-5.1
 STATEMENT_DATE_FMT=%d/%m/%y
@@ -43,7 +43,7 @@ docker run -p 8077:8077 --env-file .env statement-to-excel
 
 Deploy that image to any container host:
 
-- **TrueFoundry** (you already use it): push the image to your registry and create a
+- **Your container platform**: push the image to your registry and create a
   Service from it, port 8077, with the env vars above as secrets. Gives you an HTTPS URL.
 - **Render / Railway / Fly.io**: point at this GitHub repo (they build the Dockerfile),
   set the env vars, deploy. Each gives a public HTTPS URL.

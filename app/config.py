@@ -1,6 +1,6 @@
 """Settings + client factory for integrating statement extraction into a service.
 
-Reuses the existing `OPENAI_` env vars (TrueFoundry gateway), so the service's
+Reuses the existing `OPENAI_` env vars (OpenAI-compatible gateway), so the service's
 current `.env` works unchanged. The transaction date format for BUSY is a separate
 knob (`STATEMENT_DATE_FMT`, read by excel_writer) since it isn't gateway config.
 
@@ -24,9 +24,9 @@ class StatementLLMSettings(BaseSettings):
     API_VERSION: str = ""
     USE_GATEWAY: bool = True
     # Model the extraction uses. Benchmarked on a real scanned statement:
-    # openai/gpt-5.1 and internal-bedrock/sonnet-46 extracted all rows with 0 digit
-    # errors; openai/gpt-4o missed a row. openai/gpt-5 is NOT authorized for the
-    # transcription-helper-va account (403) — use gpt-5.1.
+    # openai/gpt-5.1 and anthropic/claude-sonnet extracted all rows with 0 digit
+    # errors; openai/gpt-4o missed a row. openai/gpt-5 was NOT authorized on the
+    # gateway account used for testing (403) — use gpt-5.1.
     CHAT_MODEL: str = "openai/gpt-5.1"
     # 32k gives "thinking" models (e.g. gemini-2.5-flash) room to emit a full
     # large table — 16k truncated page 2 to empty. Override via OPENAI_MAX_TOKENS.

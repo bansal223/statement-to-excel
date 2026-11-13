@@ -1,4 +1,4 @@
-"""OpenAI-compatible extraction engine (TrueFoundry gateway, GPT-5, etc.).
+"""OpenAI-compatible extraction engine (any OpenAI-compatible gateway, GPT-5, etc.).
 
 Mirrors vision_api.py but talks to any OpenAI-compatible Chat Completions endpoint,
 so it drops into a service that already has an OpenAI/gateway client. It reuses every

@@ -1,7 +1,7 @@
 """Service entry point — bank statement (PDF/image) bytes -> Excel (.xlsx) bytes.
 
 Framework-agnostic: no FastAPI, no UI, no global env. Inject your OpenAI-compatible
-client (e.g. a TrueFoundry gateway client) and a model name. Drop this behind your own
+client (e.g. any OpenAI-compatible gateway client) and a model name. Drop this behind your own
 endpoint/worker.
 
     from openai import OpenAI
